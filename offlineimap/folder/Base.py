@@ -695,6 +695,17 @@ class BaseFolder(object):
                 content = self.getmessage(uid)
                 rtime = emailutil.get_message_date(content, 'Date')
 
+            if always_sync_deletes and 'T' in flags:
+                # Performance optimization: don't bother uploading
+                # deleted files if delete synchronization is turned on;
+                # they'll just be deleted immediately.  This doesn't
+                # sync flags, which will be handled in the later step.
+                # We also optimize handling large runs of deleted files
+                # by not saving statusfolder until we find another
+                # message which needs to take the slow path.
+                statusfolder.savemessage(uid, None, flags, rtime)
+                return
+
             if uid > 0 and dstfolder.uidexists(uid):
                 # dst has message with that UID already, only update status
                 statusfolder.savemessage(uid, None, flags, rtime)
@@ -755,8 +766,11 @@ class BaseFolder(object):
 
         threads = []
 
-        copylist = filter(lambda uid: not statusfolder.uidexists(uid),
-            self.getmessageuidlist())
+        copylist = filter(lambda uid: not \
+                              statusfolder.uidexists(uid) and \
+                              ("Archive" not in self.getfullname() or uid > 0) and \
+                              'T' not in self.getmessageflags(uid),
+                            self.getmessageuidlist())
         num_to_copy = len(copylist)
         if num_to_copy and self.repository.account.dryrun:
             self.ui.info("[DRYRUN] Copy {0} messages from {1}[{2}] to {3}".format(
