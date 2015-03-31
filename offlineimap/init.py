@@ -308,6 +308,7 @@ class OfflineImap:
                     # tell each account to ABORT ASAP (ctrl-c)
                     getglobalui().warn("Terminating NOW (this may "\
                                        "take a few seconds)...")
+                    signal.signal(signal.SIGINT, signal.SIG_DFL)
                     accounts.Account.set_abort_event(self.config, 3)
                 elif sig == signal.SIGQUIT:
                     stacktrace.dump(sys.stderr)
